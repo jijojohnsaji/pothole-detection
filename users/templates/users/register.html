@@ -1,0 +1,36 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register</title>
+    <link rel="stylesheet" href="{% static 'users/css/auth.css' %}">
+</head>
+<body>
+
+<div class="auth-container">
+
+    <!-- LEFT SIDE -->
+    <div class="left-panel">
+        <h2>Get access to your personal hub</h2>
+        <p>Register to track potholes and get safer routes with real-time alerts.</p>
+    </div>
+
+    <!-- RIGHT SIDE -->
+    <div class="right-panel">
+        <h2>Create an account</h2>
+
+        <form method="POST">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Register</button>
+        </form>
+
+        <div class="auth-link">
+            Already have an account? <a href="/users/login/">Login</a>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

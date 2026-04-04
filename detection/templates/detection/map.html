@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pothole Map</title>
+    <style>
+        #map { height:100vh; width:100%; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+function initMap(){
+    let map = new google.maps.Map(document.getElementById("map"),{
+        zoom:15,
+        center:{lat:8.8932,lng:76.6141}
+    });
+
+    fetch("/detection/get-potholes/")
+    .then(res=>res.json())
+    .then(data=>{
+        data.forEach(p=>{
+            new google.maps.Marker({
+                position:{lat:p.latitude,lng:p.longitude},
+                map:map,
+                icon:"http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+            });
+        });
+    });
+}
+</script>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=ENTER-API-KEY&callback=initMap" async defer></script>
+</body>
+</html>

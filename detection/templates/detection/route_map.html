@@ -1,0 +1,134 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Route Map - Pothole Alerts</title>
+  <meta charset="utf-8">
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; }
+    #map { height: 100vh; width: 100%; }
+    .panel {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: white;
+      padding: 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      width: 320px;
+      z-index: 999;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      margin-top: 10px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      background: #007bff;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    button:hover { background:#0056b3; }
+  </style>
+</head>
+<body>
+
+<div class="panel">
+  <h3>Start Journey</h3>
+  <input id="start" type="text" placeholder="Start Location">
+  <input id="end" type="text" placeholder="Destination">
+  <button onclick="calcRoute()">Start Journey</button>
+  <button onclick="logoutUser()" style="background:#dc3545;">Logout</button>
+</div>
+
+<div id="map"></div>
+
+<script>
+let map, directionsService, directionsRenderer;
+let potholeMarkers = [];
+
+function initMap(){
+  map = new google.maps.Map(document.getElementById("map"), {
+    zoom: 14,
+    center: {lat: 8.8932, lng: 76.6141}
+  });
+
+  directionsService = new google.maps.DirectionsService();
+  directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
+
+  // Load potholes initially
+  loadPotholes();
+  setInterval(loadPotholes, 5000);
+
+  // Auto-fill start with current location (optional)
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition((pos)=>{
+      const p = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+      map.setCenter(p);
+    });
+  }
+
+  // Google places autocomplete (optional nice feature)
+  new google.maps.places.Autocomplete(document.getElementById("start"));
+  new google.maps.places.Autocomplete(document.getElementById("end"));
+}
+
+function calcRoute(){
+  const start = document.getElementById("start").value;
+  const end = document.getElementById("end").value;
+
+  if(!start || !end){
+    alert("Enter start and destination.");
+    return;
+  }
+
+  directionsService.route({
+    origin: start,
+    destination: end,
+    travelMode: google.maps.TravelMode.DRIVING
+  }, (result, status) => {
+    if(status === "OK"){
+      directionsRenderer.setDirections(result);
+    } else {
+      alert("Route failed: " + status);
+    }
+  });
+}
+
+function loadPotholes(){
+  fetch("{% url 'get_potholes' %}")
+    .then(res => res.json())
+    .then(data => {
+      potholeMarkers.forEach(m => m.setMap(null));
+      potholeMarkers = [];
+
+      data.forEach(p => {
+        const marker = new google.maps.Marker({
+          position: { lat: Number(p.latitude), lng: Number(p.longitude) },
+          map: map,
+          title: `Pothole (conf: ${Number(p.confidence).toFixed(2)})`,
+          icon: "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+        });
+        potholeMarkers.push(marker);
+      });
+    });
+}
+
+function logoutUser(){
+  window.location.href = "/users/logout/";
+}
+</script>
+
+<!-- IMPORTANT: add &libraries=places -->
+<script src="https://maps.googleapis.com/maps/api/js?key=ENTER-API-KEY&libraries=places&callback=initMap" async defer></script>
+
+</body>
+</html>

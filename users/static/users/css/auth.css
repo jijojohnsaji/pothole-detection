@@ -1,0 +1,90 @@
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: linear-gradient(135deg, #cfd9ff, #e2ebff);
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-container {
+    display: flex;
+    width: 900px;
+    height: 520px;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+/* LEFT PANEL */
+.left-panel {
+    flex: 1;
+    background: linear-gradient(135deg, #4a5cff, #9f7aea);
+    color: white;
+    padding: 50px 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.left-panel h2 {
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+.left-panel p {
+    font-size: 15px;
+    opacity: 0.9;
+}
+
+/* RIGHT PANEL */
+.right-panel {
+    flex: 1;
+    padding: 40px 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.right-panel h2 {
+    margin-bottom: 20px;
+    color: #333;
+}
+
+form input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #4a5cff, #6c63ff);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+.auth-link {
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+.auth-link a {
+    color: #4a5cff;
+    text-decoration: none;
+    font-weight: 600;
+}

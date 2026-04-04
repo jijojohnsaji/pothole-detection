@@ -1,0 +1,232 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pothole Detection Dashboard</title>
+    <meta charset="utf-8">
+
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; }
+        .container { display: flex; height: 100vh; }
+
+        .camera {
+            width: 40%;
+            padding: 20px;
+            background: #f4f4f4;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .camera h2 { margin-top: 0; }
+
+        .camera img {
+            width: 100%;
+            border-radius: 10px;
+            border: 2px solid #007bff;
+            background: black;
+        }
+
+        #map {
+            width: 60%;
+            height: 100vh;
+        }
+
+        .status {
+            margin-top: 15px;
+            font-weight: bold;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- LEFT SIDE: LIVE CAMERA -->
+    <div class="camera">
+        <h2>Live Pothole Detection</h2>
+
+        <!-- Live video stream from Django -->
+        <img src="{% url 'video_feed' %}" alt="Live Camera Feed">
+
+        <p class="status" id="statusText">Status: Camera Running...</p>
+        <p>Detection is running continuously using your trained YOLO model.</p>
+    </div>
+
+    <!-- RIGHT SIDE: GOOGLE MAP -->
+    <div id="map"></div>
+</div>
+
+<script>
+let map;
+let potholeMarkers = [];
+let userMarker = null;
+
+// ==========================
+// Initialize Google Map
+// ==========================
+function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 16,
+        center: { lat: 8.8932, lng: 76.6141 } // fallback
+    });
+
+    // ✅ Just show current user location (blue dot) - not saving pothole
+    showUserLocation();
+
+    // Load old potholes
+    loadPotholes();
+    setInterval(loadPotholes, 5000);
+
+    // ✅ Poll trigger endpoint (only saves when pothole detected)
+    setInterval(checkTrigger, 1000);
+}
+
+// ==========================
+// Show user's current location (blue marker)
+// ==========================
+function showUserLocation() {
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const userPos = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            };
+
+            map.setCenter(userPos);
+
+            if (userMarker) userMarker.setMap(null);
+
+            userMarker = new google.maps.Marker({
+                position: userPos,
+                map: map,
+                title: "Your Current Location",
+                icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+            });
+        },
+        () => {
+            console.log("Geolocation permission denied. Using default location.");
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+
+// ==========================
+// Load potholes from DB and show on map
+// ==========================
+function loadPotholes() {
+    fetch("{% url 'get_potholes' %}")
+        .then(res => res.json())
+        .then(data => {
+            // Clear old pothole markers
+            potholeMarkers.forEach(m => m.setMap(null));
+            potholeMarkers = [];
+
+            data.forEach(p => {
+                const marker = new google.maps.Marker({
+                    position: { lat: Number(p.latitude), lng: Number(p.longitude) },
+                    map: map,
+                    title: `Pothole (conf: ${Number(p.confidence).toFixed(2)})`,
+                    icon: "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+                });
+                potholeMarkers.push(marker);
+            });
+        })
+        .catch(err => console.error("Error loading potholes:", err));
+}
+
+// ==========================
+// Poll backend trigger endpoint
+// ==========================
+function checkTrigger() {
+    fetch("{% url 'trigger_location' %}")
+        .then(res => res.json())
+        .then(data => {
+            // ✅ Only when detector triggers
+            if (data.status === "capture_location") {
+                const conf = data.confidence || 0.0;
+                sendPotholeLocation(conf);
+            }
+        })
+        .catch(err => console.log("Trigger error:", err));
+}
+
+// ==========================
+// Capture GPS at the moment of pothole detection and save it
+// ==========================
+function sendPotholeLocation(confidence) {
+    if (!navigator.geolocation) {
+        alert("Geolocation is not supported by this browser.");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            fetch("{% url 'save_location' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: JSON.stringify({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    confidence: confidence
+                })
+            })
+            .then(res => res.json())
+            .then(resp => {
+                if (resp.status === "saved" && resp.pothole) {
+                    // ✅ Add marker instantly (no waiting for refresh)
+                    const p = resp.pothole;
+                    const marker = new google.maps.Marker({
+                        position: { lat: Number(p.latitude), lng: Number(p.longitude) },
+                        map: map,
+                        title: `Pothole (conf: ${Number(p.confidence).toFixed(2)})`,
+                        icon: "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
+                    });
+                    potholeMarkers.push(marker);
+
+                    // Optional: focus map to new pothole
+                    map.panTo({ lat: Number(p.latitude), lng: Number(p.longitude) });
+                } else {
+                    console.log("Save response:", resp);
+                }
+            })
+            .catch(err => console.log("Save error:", err));
+        },
+        (error) => {
+            console.log("GPS error:", error);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+
+// ==========================
+// CSRF token helper
+// ==========================
+function getCSRFToken() {
+    let name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        let cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            let cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=ENTER-API-KEY&callback=initMap" async defer></script>
+
+</body>
+</html>

@@ -1,0 +1,4 @@
+dasboard opening:- http://127.0.0.1:8000/detection/dashboard/
+dasboard opening:- http://localhost:8000/detection/dashboard/
+user login:- http://127.0.0.1:8000/users/login/
+
